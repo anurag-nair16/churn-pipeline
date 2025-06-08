@@ -84,7 +84,7 @@ try:
     recent_churn_rates = [row[0] for row in cursor.fetchall()]
     churn_rate_7day_avg = sum(recent_churn_rates) / len(recent_churn_rates) if recent_churn_rates else churn_rate
 
-    # Insert analysis results
+    # Insert or update analysis results
     cursor.execute("""
         INSERT INTO churn_analysis_history (
             analysis_date, total_customers, churned_customers, churn_rate,
@@ -95,8 +95,35 @@ try:
             avg_monthly_charges_churned, avg_monthly_charges_retained,
             revenue_loss_churn, high_risk_customers, high_risk_churn_rate
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            total_customers = %s,
+            churned_customers = %s,
+            churn_rate = %s,
+            churn_rate_change = %s,
+            churn_rate_7day_avg = %s,
+            churn_month_to_month = %s,
+            churn_one_year = %s,
+            churn_two_year = %s,
+            churn_senior_citizen = %s,
+            churn_no_online_security = %s,
+            churn_no_tech_support = %s,
+            avg_tenure_churned = %s,
+            avg_tenure_retained = %s,
+            avg_monthly_charges_churned = %s,
+            avg_monthly_charges_retained = %s,
+            revenue_loss_churn = %s,
+            high_risk_customers = %s,
+            high_risk_churn_rate = %s
     """, (
         analysis_date, total_customers, churned_customers, round(churn_rate, 2),
+        round(churn_rate_change, 2), round(churn_rate_7day_avg, 2),
+        churn_month_to_month, churn_one_year, churn_two_year, churn_senior_citizen,
+        churn_no_online_security, churn_no_tech_support,
+        round(avg_tenure_churned, 2), round(avg_tenure_retained, 2),
+        round(avg_monthly_charges_churned, 2), round(avg_monthly_charges_retained, 2),
+        round(revenue_loss_churn, 2), high_risk_customers, round(high_risk_churn_rate, 2),
+        # Repeated for ON DUPLICATE KEY UPDATE
+        total_customers, churned_customers, round(churn_rate, 2),
         round(churn_rate_change, 2), round(churn_rate_7day_avg, 2),
         churn_month_to_month, churn_one_year, churn_two_year, churn_senior_citizen,
         churn_no_online_security, churn_no_tech_support,
@@ -105,11 +132,18 @@ try:
         round(revenue_loss_churn, 2), high_risk_customers, round(high_risk_churn_rate, 2)
     ))
 
-    # Commit changes
-    conn.commit()
-    logging.info("✅ Churn analysis completed and stored for %s", analysis_date)
+    # Check if the query affected an existing row (update) or created a new one (insert)
+    if cursor.rowcount == 1:
+        logging.info("✅ Inserted new churn analysis for %s", analysis_date)
+    else:
+        logging.info("✅ Updated existing churn analysis for %s", analysis_date)
+
+    # Log key insights
     logging.info("Key Insights: Churn Rate: %.2f%%, 7-Day Avg: %.2f%%, Revenue Loss: $%.2f, High-Risk Churn Rate: %.2f%%",
                  churn_rate, churn_rate_7day_avg, revenue_loss_churn, high_risk_churn_rate)
+
+    # Commit changes
+    conn.commit()
 
 except mysql.connector.Error as e:
     logging.error("Database error: %s", e)
