@@ -4,13 +4,14 @@ import mysql.connector
 from faker import Faker
 import os
 
-# Connect to TiDB using environment variables
+# Connect to TiDB using environment variables and CA certificate
 conn = mysql.connector.connect(
     host=os.getenv('TIDB_HOST'),
     user=os.getenv('TIDB_USER'),
     password=os.getenv('TIDB_PASSWORD'),
     database=os.getenv('TIDB_DATABASE'),
     port=4000,
+    ssl_ca='tidb-ca.pem',  # Path to the CA certificate
     ssl_verify_cert=True
 )
 
